@@ -12,11 +12,13 @@ from app.api.schemas.posts import (
 )
 from app.core.db import get_db
 from app.domain.posts import service as post_service
+from app.core.cache import posts_cache  
 from app.domain.posts.models import Post
 from app.domain.users.models import User
 
 router = APIRouter()
 
+POSTS_CACHE_TTL = 300
 
 @router.get("/posts/", response_model=List[PostListItem])
 def list_posts(
@@ -26,6 +28,11 @@ def list_posts(
     author: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    cache_key = f"posts:{page}:{page_size}:{tag or ''}:{author or ''}"
+    cached = posts_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     posts = post_service.list_published_posts(
         db,
         page=page,
@@ -33,7 +40,7 @@ def list_posts(
         tag_slug=tag,
         author_username=author,
     )
-    return [
+    result = [
         PostListItem(
             title=p.title,
             slug=p.slug,
@@ -43,6 +50,9 @@ def list_posts(
         )
         for p in posts
     ]
+
+    posts_cache.set(cache_key, result, POSTS_CACHE_TTL)
+    return result
 
 
 @router.get("/posts/{slug}/", response_model=PostDetail)
@@ -67,6 +77,7 @@ def create_post(
         tag_names=post_in.tags,
         slug=post_in.slug,
     )
+    posts_cache.clear(prefix="posts:")
     return post
 
 
@@ -89,6 +100,7 @@ def update_post(
         status=post_in.status,
         tag_names=post_in.tags,
     )
+    posts_cache.clear(prefix="posts:")
     return post
 
 
@@ -103,4 +115,27 @@ def delete_post(
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     post_service.delete_post(db, post)
+    posts_cache.clear(prefix="posts:")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/search/", response_model=List[PostListItem])
+def search_posts(
+    q: str = Query(..., min_length=1),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    posts = post_service.search_posts(
+        db, query=q, page=page, page_size=page_size
+    )
+    return [
+        PostListItem(
+            title=p.title,
+            slug=p.slug,
+            author=p.author.username,
+            created_at=p.created_at,
+            excerpt=p.content[:200],
+        )
+        for p in posts
+    ]

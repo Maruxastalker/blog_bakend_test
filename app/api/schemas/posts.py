@@ -11,7 +11,7 @@ from .users import UserPublic
 class PostBase(BaseModel):
     title: str
     content: str = Field(..., min_length=100)
-    status: str = Field("draft", regex="^(draft|published)$")
+    status: str = Field("draft", pattern="^(draft|published)$")
     tags: List[str] = []
 
 
@@ -22,7 +22,7 @@ class PostCreate(PostBase):
 class PostUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = Field(None, min_length=100)
-    status: Optional[str] = Field(None, regex="^(draft|published)$")
+    status: Optional[str] = Field(None, pattern="^(draft|published)$")
     tags: Optional[List[str]] = None
 
 
@@ -48,4 +48,4 @@ class PostDetail(BaseModel):
     comments: List[CommentRead]
 
     class Config:
-        orm_mode = True
+        from_attributes = True

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
 
 class UserBase(BaseModel):
@@ -18,6 +19,7 @@ class UserPublic(BaseModel):
     email: EmailStr
     date_joined: datetime
     is_active: bool
+    avatar_url: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

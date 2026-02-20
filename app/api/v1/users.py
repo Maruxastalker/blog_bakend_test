@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.schemas.posts import PostListItem
@@ -9,6 +9,7 @@ from app.core.db import get_db
 from app.domain.posts.models import Post
 from app.domain.users.models import User
 from app.domain.users.service import get_user_by_username
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -65,3 +66,24 @@ def get_user_posts(
         )
         for p in posts
     ]
+
+@router.post("/users/{username}/avatar/", response_model=UserPublic)
+def upload_avatar(
+    username: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.username != username:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    user = get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    avatar_url = save_avatar_file(file, user.id)
+    user.avatar_url = avatar_url
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

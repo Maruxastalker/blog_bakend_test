@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.core.db import Base
-import app.domain  # noqa: F401  # чтобы подцепить все модели
+import app.domain  # noqa  # чтобы модели зарегистрировались
 
 config = context.config
 

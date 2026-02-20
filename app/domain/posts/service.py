@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 
 from app.core.utils import generate_unique_post_slug, slugify
 from app.domain.comments.models import Comment
@@ -146,3 +147,26 @@ def update_post(
 def delete_post(db: Session, post: Post) -> None:
     db.delete(post)
     db.commit()
+
+
+def search_posts(
+    db: Session,
+    query: str,
+    page: int,
+    page_size: int,
+) -> List[Post]:
+    pattern = f"%{query}%"
+    posts = (
+        db.query(Post)
+        .join(User)
+        .filter(
+            Post.status == "published",
+            or_(Post.title.ilike(pattern), Post.content.ilike(pattern)),
+        )
+        .options(joinedload(Post.author))
+        .order_by(Post.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return posts

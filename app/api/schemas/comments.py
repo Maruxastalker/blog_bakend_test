@@ -14,7 +14,7 @@ class CommentAuthor(BaseModel):
     username: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CommentRead(BaseModel):
@@ -25,4 +25,4 @@ class CommentRead(BaseModel):
     author: CommentAuthor
 
     class Config:
-        orm_mode = True
+        from_attributes = True
